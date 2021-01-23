@@ -20,6 +20,8 @@ public class HandlePlayer : NetworkBehaviour
     [SerializeField]
     private float bulletSpeed = 10;
     [SerializeField]
+    private float maximumPlayerSpeed = 1;
+    [SerializeField]
     private GameObject bullet;
 
     private Rigidbody2D rig;
@@ -70,17 +72,23 @@ public class HandlePlayer : NetworkBehaviour
                 rig.AddForce(f * (planetUnderGravity.transform.position - transform.position).normalized);
 
                 //Always stand upright on planet
-                var dir = planetUnderGravity.transform.position - transform.position;
+                var dir = planetUnderGravity.transform.position - this.transform.position;
                 float targetRotAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
                 rig.SetRotation(targetRotAngle + 90);
 
                 //Player input move across planet
                 if (Input.GetAxis("Horizontal") != 0)
+                {
                     rig.AddForce(Input.GetAxis("Horizontal") * transform.right * moveSpeed);
+                }
+
+                //Decsellerate when not moving
+                if (Input.GetAxis("Horizontal") == 0)
+                    rig.AddForce(-rig.velocity.normalized * transform.right * 2);
 
                 //Jump (Can do double/triple/... jumps)
                 jumpCD -= Time.deltaTime;
-                if ((Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.Space)) && jumps < allowedJumps && jumpCD <= 0)
+                if (Input.GetKeyDown(KeyCode.Space) && jumps < allowedJumps && jumpCD <= 0)
                 {
                     rig.velocity = rig.velocity * transform.right;
                     rig.AddForce(jumpForce * transform.up);
@@ -92,9 +100,12 @@ public class HandlePlayer : NetworkBehaviour
                     rig.velocity = rig.velocity * transform.right;
                 }
 
-                //RigBod Friction is whack, manually dampen player horizontal movement
-                if ((rig.velocity * transform.up).magnitude < .1f && jumps == 0)
-                    rig.AddForce(-rig.velocity.normalized * (moveSpeed / 4));
+                //Slow the player once it reaches a certain speed
+                if((rig.velocity.magnitude - (Vector2.one.magnitude) * maximumPlayerSpeed) >= 1)
+                {
+                        rig.AddForce(-Vector2.one * (rig.velocity.magnitude - (Vector2.one.magnitude * maximumPlayerSpeed)) * transform.right * rig.velocity.normalized);
+                }
+
             }
         }
     }
