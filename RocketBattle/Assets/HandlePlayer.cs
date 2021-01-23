@@ -86,6 +86,7 @@ public class HandlePlayer : NetworkBehaviour
                 if (Input.GetAxis("Horizontal") == 0)
                     rig.AddForce(-rig.velocity.normalized * transform.right * 2);
 
+
                 //Jump (Can do double/triple/... jumps)
                 jumpCD -= Time.deltaTime;
                 if (Input.GetKeyDown(KeyCode.Space) && jumps < allowedJumps && jumpCD <= 0)
