@@ -23,6 +23,10 @@ public class HandlePlayer : NetworkBehaviour
     private float maximumPlayerSpeed = 1;
     [SerializeField]
     private GameObject bullet;
+    [SerializeField]
+    private GameObject gun;
+    private GameObject spawnedGun;
+    private float gunAngle = 0;
 
     private Rigidbody2D rig;
     private Rigidbody2D planetUnderGravity;
@@ -51,10 +55,15 @@ public class HandlePlayer : NetworkBehaviour
             }
         }
 
+        //Spawn a gun for the player!
+        SpawnGun();
+
         if (this.isLocalPlayer)
         {
             transform.Find("Camera").gameObject.SetActive(true);
         }
+
+
     }
 
     void Update()
@@ -86,7 +95,6 @@ public class HandlePlayer : NetworkBehaviour
                 if (Input.GetAxis("Horizontal") == 0)
                     rig.AddForce(-rig.velocity.normalized * transform.right * 2);
 
-
                 //Jump (Can do double/triple/... jumps)
                 jumpCD -= Time.deltaTime;
                 if (Input.GetKeyDown(KeyCode.Space) && jumps < allowedJumps && jumpCD <= 0)
@@ -96,13 +104,18 @@ public class HandlePlayer : NetworkBehaviour
                     jumps += 1;
                     jumpCD = _JUMPCD;
                 }
-                if (Input.GetKeyDown(KeyCode.S))
+                if (Input.GetKey(KeyCode.W))
                 {
-                    rig.velocity = rig.velocity * transform.right;
+                    gunAngle += 1;
                 }
+                if (Input.GetKey(KeyCode.S))
+                {
+                    gunAngle -= 1;
+                }
+                spawnedGun.transform.localRotation = Quaternion.Euler(0,0,gunAngle);
 
                 //Slow the player once it reaches a certain speed
-                if((rig.velocity.magnitude - (Vector2.one.magnitude) * maximumPlayerSpeed) >= 1)
+                if ((rig.velocity.magnitude - (Vector2.one.magnitude) * maximumPlayerSpeed) >= 1)
                 {
                         rig.AddForce(-Vector2.one * (rig.velocity.magnitude - (Vector2.one.magnitude * maximumPlayerSpeed)) * transform.right * rig.velocity.normalized);
                 }
@@ -111,10 +124,10 @@ public class HandlePlayer : NetworkBehaviour
         }
     }
 
-    void OnTriggerEnter2D(Collider2D c)
+    void OnTriggerEnter2D(Collider2D collider)
     {
         //Debug.Log(c.tag + ", " + myBullets.Count);
-        if (c.tag == "Bullet" && !c.name.EndsWith(playerName) && !rocketBoarded) //Bullet names are tied to player name
+        if (collider.tag == "Bullet" && !collider.name.EndsWith(playerName) && !rocketBoarded) //Bullet names are tied to player name
         {
             GameObject[] spawns = GameObject.FindGameObjectsWithTag("Respawn");
             int randSpawn = Random.Range(0, spawns.Length);
@@ -122,9 +135,9 @@ public class HandlePlayer : NetworkBehaviour
         }
     }
 
-    private void OnCollisionEnter2D(Collision2D c)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (c.gameObject.tag == "Planet" && Vector2.Distance(c.GetContact(0).point, c.transform.position) < Vector2.Distance(c.transform.position, transform.position)) //Contact point is closer to planet than player, aka touched planet with feet
+        if (collision.gameObject.tag == "Planet" && Vector2.Distance(collision.GetContact(0).point, collision.transform.position) < Vector2.Distance(collision.transform.position, transform.position)) //Contact point is closer to planet than player, aka touched planet with feet
         {
             jumps = 0;
         }
@@ -133,10 +146,19 @@ public class HandlePlayer : NetworkBehaviour
     [Command]
     void CmdShootBullet()
     {
-        GameObject b = Instantiate(bullet, new Vector3(transform.position.x, transform.position.y, 0), transform.rotation);
-        b.name += playerName;
-        b.GetComponent<Rigidbody2D>().velocity = transform.right * bulletSpeed;
-        NetworkServer.Spawn(b);
-        Destroy(b, 2.0f);
+        GameObject bulletSpawn = Instantiate(bullet, new Vector3(transform.position.x, transform.position.y, 0), transform.rotation);
+        bulletSpawn.name += playerName;
+        bulletSpawn.GetComponent<Rigidbody2D>().velocity = transform.right * bulletSpeed;
+        NetworkServer.Spawn(bulletSpawn);
+        Destroy(bulletSpawn, 2.0f);
+    }
+
+    void SpawnGun()
+    {
+        spawnedGun = Instantiate(gun, new Vector3(transform.position.x, transform.position.y, 0), transform.rotation);
+        spawnedGun.name += playerName;
+        spawnedGun.transform.parent = transform;
+        NetworkServer.Spawn(spawnedGun);
+
     }
 }
