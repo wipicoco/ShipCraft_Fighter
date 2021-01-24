@@ -20,7 +20,7 @@ public class HandlePlayer : NetworkBehaviour
     [SerializeField]
     private float bulletSpeed = 10;
     [SerializeField]
-    private float maximumPlayerSpeed = 1;
+    private float maximumPlayerSpeed = 5;
     [SerializeField]
     private GameObject bullet;
     [SerializeField]
@@ -28,6 +28,7 @@ public class HandlePlayer : NetworkBehaviour
     private GameObject spawnedGun;
     private float gunAngle = 0;
     private bool isRight = true;
+    private float playerZenith;
 
     private Rigidbody2D rig;
     private Rigidbody2D planetUnderGravity;
@@ -85,33 +86,33 @@ public class HandlePlayer : NetworkBehaviour
 
                 //Always stand upright on planet
                 var dir = planetUnderGravity.transform.position - this.transform.position;
-                float targetRotAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                rig.SetRotation(targetRotAngle + 90);
+                playerZenith = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                rig.SetRotation(playerZenith + 90);
 
-                //Player input move across planet AND flip gun when switching direction
+                //Player input move across planet
                 if (Input.GetAxis("Horizontal") != 0)
                 {
-                    rig.AddForce(Input.GetAxis("Horizontal") * transform.right * moveSpeed);
+                    rig.AddForce(Input.GetAxis("Horizontal") * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * moveSpeed);
                 }
 
                 //Decsellerate when not moving
                 if (Input.GetAxis("Horizontal") == 0)
-                    rig.AddForce(-rig.velocity.normalized * transform.right * 2);
+                    rig.AddForce(-rig.velocity.normalized * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * 2);
 
                 //Jump (Can do double/triple/... jumps)
                 jumpCD -= Time.deltaTime;
                 if (Input.GetKeyDown(KeyCode.Space) && jumps < allowedJumps && jumpCD <= 0)
                 {
-                    rig.velocity = rig.velocity * transform.right;
+                    rig.velocity = rig.velocity * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y));
                     rig.AddForce(jumpForce * transform.up);
                     jumps += 1;
                     jumpCD = _JUMPCD;
                 }
 
                 //Slow the player once it reaches a certain speed
-                if ((rig.velocity.magnitude - (Vector2.one.magnitude) * maximumPlayerSpeed) >= 1)
+                if (rig.velocity.magnitude > maximumPlayerSpeed)
                 {
-                        rig.AddForce(-Vector2.one * (rig.velocity.magnitude - (Vector2.one.magnitude * maximumPlayerSpeed)) * transform.right * rig.velocity.normalized);
+                    rig.AddForce(Input.GetAxis("Horizontal") * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * -moveSpeed);
                 }
 
             }
@@ -151,7 +152,7 @@ public class HandlePlayer : NetworkBehaviour
         GameObject bulletSpawn = Instantiate(bullet, new Vector3(transform.position.x, transform.position.y, 0), Quaternion.Euler(transform.rotation.x, transform.rotation.y, gunAngle));
         bulletSpawn.name += playerName;
         bulletSpawn.transform.parent = transform;
-        bulletSpawn.GetComponent<Rigidbody2D>().velocity = new Vector2(Mathf.Cos(Mathf.Deg2Rad * (gunAngle + 90)), Mathf.Sin(Mathf.Deg2Rad * (gunAngle + 90))) * bulletSpeed;
+        bulletSpawn.GetComponent<Rigidbody2D>().velocity = new Vector2(Mathf.Cos(Mathf.Deg2Rad * (gunAngle + playerZenith + 90)), Mathf.Sin(Mathf.Deg2Rad * (gunAngle + playerZenith + 90))) * bulletSpeed;
         NetworkServer.Spawn(bulletSpawn);
         Destroy(bulletSpawn, 2.0f);
     }
