@@ -27,6 +27,7 @@ public class HandlePlayer : NetworkBehaviour
     private GameObject gun;
     private GameObject spawnedGun;
     private float gunAngle = 0;
+    private bool isRight = true;
 
     private Rigidbody2D rig;
     private Rigidbody2D planetUnderGravity;
@@ -74,6 +75,8 @@ public class HandlePlayer : NetworkBehaviour
             if (Input.GetMouseButtonDown(0))
                 this.CmdShootBullet();
 
+            CalculateGunAngle();
+
             if (planetUnderGravity != null)
             {
                 //Gravity
@@ -85,7 +88,7 @@ public class HandlePlayer : NetworkBehaviour
                 float targetRotAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
                 rig.SetRotation(targetRotAngle + 90);
 
-                //Player input move across planet
+                //Player input move across planet AND flip gun when switching direction
                 if (Input.GetAxis("Horizontal") != 0)
                 {
                     rig.AddForce(Input.GetAxis("Horizontal") * transform.right * moveSpeed);
@@ -104,15 +107,6 @@ public class HandlePlayer : NetworkBehaviour
                     jumps += 1;
                     jumpCD = _JUMPCD;
                 }
-                if (Input.GetKey(KeyCode.W))
-                {
-                    gunAngle += 1;
-                }
-                if (Input.GetKey(KeyCode.S))
-                {
-                    gunAngle -= 1;
-                }
-                spawnedGun.transform.localRotation = Quaternion.Euler(0,0,gunAngle);
 
                 //Slow the player once it reaches a certain speed
                 if ((rig.velocity.magnitude - (Vector2.one.magnitude) * maximumPlayerSpeed) >= 1)
@@ -120,6 +114,14 @@ public class HandlePlayer : NetworkBehaviour
                         rig.AddForce(-Vector2.one * (rig.velocity.magnitude - (Vector2.one.magnitude * maximumPlayerSpeed)) * transform.right * rig.velocity.normalized);
                 }
 
+            }
+            if (Input.GetAxis("Horizontal") < 0)
+            {
+                isRight = false;
+            }
+            else if (Input.GetAxis("Horizontal") > 0)
+            {
+                isRight = true;
             }
         }
     }
@@ -146,9 +148,10 @@ public class HandlePlayer : NetworkBehaviour
     [Command]
     void CmdShootBullet()
     {
-        GameObject bulletSpawn = Instantiate(bullet, new Vector3(transform.position.x, transform.position.y, 0), transform.rotation);
+        GameObject bulletSpawn = Instantiate(bullet, new Vector3(transform.position.x, transform.position.y, 0), Quaternion.Euler(transform.rotation.x, transform.rotation.y, gunAngle));
         bulletSpawn.name += playerName;
-        bulletSpawn.GetComponent<Rigidbody2D>().velocity = transform.right * bulletSpeed;
+        bulletSpawn.transform.parent = transform;
+        bulletSpawn.GetComponent<Rigidbody2D>().velocity = new Vector2(Mathf.Cos(Mathf.Deg2Rad * (gunAngle + 90)), Mathf.Sin(Mathf.Deg2Rad * (gunAngle + 90))) * bulletSpeed;
         NetworkServer.Spawn(bulletSpawn);
         Destroy(bulletSpawn, 2.0f);
     }
@@ -161,4 +164,117 @@ public class HandlePlayer : NetworkBehaviour
         NetworkServer.Spawn(spawnedGun);
 
     }
+
+    void CalculateGunAngle()
+    {
+
+        if (Input.GetAxis("Horizontal") != 0)
+        {
+            if ((gunAngle < -90f) && isRight)
+            {
+                gunAngle = gunAngle - (2 * (gunAngle - -90f));
+            }
+            else if ((gunAngle > 90f) && isRight)
+            {
+                gunAngle = gunAngle - (2 * (gunAngle - 90f));
+            }
+            else if ((gunAngle < 90f) && (gunAngle > 0f) && !isRight)
+            {
+                gunAngle = gunAngle + (2 * (90f - gunAngle));
+            }
+            else if ((gunAngle > -90f) && (gunAngle < 0f) && !isRight)
+            {
+                gunAngle = gunAngle + (2 * (-90f - gunAngle));
+            }
+            else if ((gunAngle == 0) && !isRight)
+            {
+                gunAngle = -180;
+            }
+            else if ((gunAngle == -180) && isRight)
+            {
+                gunAngle = 0;
+            }
+        }
+
+        /*
+         * code for smooth aiming
+        if (Input.GetKey(KeyCode.W))
+        {
+            if (gunAngle < -90f || gunAngle > 90f)
+            {
+                gunAngle -= .5f;
+            }
+            else
+            {
+                gunAngle += .5f;
+            }
+        }
+        if (Input.GetKey(KeyCode.S))
+        {
+            if (gunAngle < -90f || gunAngle > 90f)
+            {
+                gunAngle += .5f;
+            }
+            else
+            {
+                gunAngle -= .5f;
+            }
+        }
+        */
+
+        //code for simple aiming (pierce preferred)
+        if (Input.GetKeyDown(KeyCode.W))
+        {
+            if (gunAngle != 90f && gunAngle != -90f)
+            {
+                if (gunAngle < -90f || gunAngle > 90f)
+                {
+                    gunAngle -= 45f;
+                }
+                else
+                {
+                    gunAngle += 45f;
+                }
+            }
+            else if (gunAngle == -90f)
+            {
+                if (isRight)
+                {
+                    gunAngle += 45f;
+                }
+                else
+                {
+                    gunAngle -= 45;
+                }
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            if (gunAngle != -90f && gunAngle != 90f)
+            {
+                if (gunAngle < -90f || gunAngle > 90f)
+                {
+                    gunAngle += 45f;
+                }
+                else
+                {
+                    gunAngle -= 45f;
+                }
+            }
+            else if (gunAngle == 90f)
+            {
+                if (isRight)
+                {
+                    gunAngle -= 45f;
+                }
+                else
+                {
+                    gunAngle += 45;
+
+                }
+            }
+        }
+        spawnedGun.transform.localRotation = Quaternion.Euler(0, 0, gunAngle);
+    }
+    
 }
