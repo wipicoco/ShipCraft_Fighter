@@ -264,7 +264,9 @@ MonoBehaviour:
   moveSpeed: 1
   jumpForce: 120
   bulletSpeed: 10
+  maximumPlayerSpeed: 1
   bullet: {fileID: 2489139579147049679, guid: 5e9ad389ad09a5e46a27ecbd8d7af492, type: 3}
+  gun: {fileID: 1090515968193945811, guid: 10ac9f7c8f35fa84e8e5f64fe3f973b6, type: 3}
 --- !u!114 &4442092997127355218
 MonoBehaviour:
   m_ObjectHideFlags: 0
