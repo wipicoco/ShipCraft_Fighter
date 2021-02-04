@@ -10,7 +10,7 @@ public class HandlePlayer : NetworkBehaviour
     private GameObject[] planets;
 
     [SerializeField]
-    private float moveSpeed = .1f;
+    private float moveSpeed = .2f;
     [SerializeField]
     private float jumpForce = 10f;
     private short jumps = 0;
@@ -20,15 +20,19 @@ public class HandlePlayer : NetworkBehaviour
     [SerializeField]
     private float bulletSpeed = 10;
     [SerializeField]
-    private float maximumPlayerSpeed = 5;
+    private float maximumPlayerSpeed = 7;
     [SerializeField]
     private GameObject bullet;
     [SerializeField]
     private GameObject gun;
     private GameObject spawnedGun;
     private float gunAngle = 0;
+    [SerializeField]
     private bool isRight = true;
     private float playerZenith;
+    float accelerationFactor = 0f;
+    bool moving = false;
+    bool grounded = false;
 
     private Rigidbody2D rig;
     private Rigidbody2D planetUnderGravity;
@@ -80,6 +84,7 @@ public class HandlePlayer : NetworkBehaviour
 
             if (planetUnderGravity != null)
             {
+
                 //Gravity
                 float f = (planetUnderGravity.mass * rig.mass) / Mathf.Pow(Vector2.Distance(transform.position, planetUnderGravity.transform.position), 2);
                 rig.AddForce(f * (planetUnderGravity.transform.position - transform.position).normalized);
@@ -89,15 +94,33 @@ public class HandlePlayer : NetworkBehaviour
                 playerZenith = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
                 rig.SetRotation(playerZenith + 90);
 
-                //Player input move across planet
-                if (Input.GetAxis("Horizontal") != 0)
-                {
-                    rig.AddForce(Input.GetAxis("Horizontal") * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * moveSpeed);
-                }
+                //calculate speed on the player's x axis
+                float speedRight = Vector2.Dot(rig.velocity, transform.right);
+                float speedLeft = Vector2.Dot(rig.velocity, -transform.right);
 
-                //Decsellerate when not moving
-                if (Input.GetAxis("Horizontal") == 0)
-                    rig.AddForce(-rig.velocity.normalized * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * 2);
+                //walking right
+                if (Input.GetKey(KeyCode.D) && speedRight < maximumPlayerSpeed)
+                {
+                    isRight = true;
+                    //accelerationFactor = moveSpeed;
+                    rig.AddForce(new Vector2(transform.right.x, transform.right.y).normalized * moveSpeed);
+                }
+                //walking left
+                else if (Input.GetKey(KeyCode.A) && speedLeft < maximumPlayerSpeed)
+                {
+                    isRight = false;
+                    //accelerationFactor = -moveSpeed;
+                    rig.AddForce(new Vector2(transform.right.x, transform.right.y).normalized * -moveSpeed);
+                }
+                //not walking
+                else
+                {
+                    //ground friction
+                    if (grounded)
+                    {
+                        rig.velocity = rig.velocity * .98f;
+                    }
+                }
 
                 //Jump (Can do double/triple/... jumps)
                 jumpCD -= Time.deltaTime;
@@ -107,22 +130,9 @@ public class HandlePlayer : NetworkBehaviour
                     rig.AddForce(jumpForce * transform.up);
                     jumps += 1;
                     jumpCD = _JUMPCD;
+                    grounded = false;
                 }
 
-                //Slow the player once it reaches a certain speed
-                if (rig.velocity.magnitude > maximumPlayerSpeed)
-                {
-                    rig.AddForce(Input.GetAxis("Horizontal") * new Vector2(Mathf.Abs(transform.right.x), Mathf.Abs(transform.right.y)) * -moveSpeed);
-                }
-
-            }
-            if (Input.GetAxis("Horizontal") < 0)
-            {
-                isRight = false;
-            }
-            else if (Input.GetAxis("Horizontal") > 0)
-            {
-                isRight = true;
             }
         }
     }
@@ -143,6 +153,7 @@ public class HandlePlayer : NetworkBehaviour
         if (collision.gameObject.tag == "Planet" && Vector2.Distance(collision.GetContact(0).point, collision.transform.position) < Vector2.Distance(collision.transform.position, transform.position)) //Contact point is closer to planet than player, aka touched planet with feet
         {
             jumps = 0;
+            grounded = true;
         }
     }
 
